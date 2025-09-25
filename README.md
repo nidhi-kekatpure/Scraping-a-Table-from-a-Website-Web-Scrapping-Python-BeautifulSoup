@@ -1,6 +1,6 @@
 # 🕸️ Web Scraping: Largest U.S. Companies by Revenue
 
-## 📝 Business Problem
+## Business Problem
 Businesses, investors, and analysts often need up-to-date information about the **largest companies in the United States by revenue** to track market leaders, analyze industry trends, and support decision-making.  
 Manually gathering this data from websites like **Wikipedia** is time-consuming and prone to errors.
 
@@ -43,4 +43,5 @@ I solved this problem by building a **Python web scraper** that automatically:
 5. **Exports** the dataset into a **CSV file** for further business analysis  
 
 ---
+
 
