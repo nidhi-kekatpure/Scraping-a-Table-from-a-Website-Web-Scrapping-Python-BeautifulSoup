@@ -203,14 +203,7 @@ def main():
         if 'Revenue (USD millions)' in df.columns:
             filtered_df = filtered_df[filtered_df['Revenue (USD millions)'] >= min_revenue]
         
-        # Debug section (can be removed later)
-        with st.expander("🔍 Debug Info - Data Structure"):
-            st.write("**DataFrame Shape:**", filtered_df.shape)
-            st.write("**Column Names:**", list(filtered_df.columns))
-            st.write("**First few rows:**")
-            st.dataframe(filtered_df.head(3))
-            st.write("**Data Types:**")
-            st.write(filtered_df.dtypes)
+
         
         # Display filtered data
         st.markdown("---")
@@ -257,53 +250,22 @@ def main():
                         name_col = col
                         break
                 
-                # Debug information
-                st.write(f"**Found columns:** Revenue: `{revenue_col}`, Name: `{name_col}`")
-                
                 if revenue_col and name_col:
-                    # Show sample data before processing
-                    st.write("**Sample revenue data:**")
-                    st.write(filtered_df[revenue_col].head(5).tolist())
-                    
                     try:
-                        # Check how many valid numeric values we have
-                        valid_revenue_count = filtered_df[revenue_col].notna().sum()
-                        st.write(f"**Valid revenue entries:** {valid_revenue_count} out of {len(filtered_df)}")
+                        # Get top 10 companies with valid revenue data
+                        top_10 = filtered_df.dropna(subset=[revenue_col]).nlargest(10, revenue_col)
                         
-                        if valid_revenue_count > 0:
-                            # Get top 10 companies with valid revenue data
-                            top_10 = filtered_df.dropna(subset=[revenue_col]).nlargest(10, revenue_col)
-                            
-                            st.write(f"**Top 10 companies found:** {len(top_10)}")
-                            
-                            if len(top_10) > 0:
-                                # Show the data we're trying to chart
-                                st.write("**Data for chart:**")
-                                chart_data = top_10[[name_col, revenue_col]].set_index(name_col)[revenue_col]
-                                st.write(chart_data)
-                                
-                                # Create the chart
-                                st.bar_chart(chart_data, height=400)
-                            else:
-                                st.warning("No companies found after filtering")
+                        if len(top_10) > 0:
+                            # Create the chart
+                            chart_data = top_10.set_index(name_col)[revenue_col]
+                            st.bar_chart(chart_data, height=400)
                         else:
-                            st.warning("No valid numeric revenue data found")
-                            st.write("**Raw revenue column sample:**")
-                            st.write(filtered_df[revenue_col].head(10))
+                            st.info("No revenue data available for visualization")
                             
                     except Exception as e:
-                        st.error(f"Error creating chart: {str(e)}")
-                        st.write("**Error details:**")
-                        st.write(f"Revenue column type: {filtered_df[revenue_col].dtype}")
-                        st.write(f"Sample values: {filtered_df[revenue_col].head(5).tolist()}")
+                        st.error(f"Unable to create revenue chart: {str(e)}")
                 else:
-                    st.warning("Could not find required columns")
-                    st.write("**Available columns:**", list(filtered_df.columns))
-                    
-                    # Try to find any column that might contain revenue data
-                    st.write("**Column content preview:**")
-                    for col in filtered_df.columns:
-                        st.write(f"**{col}:** {filtered_df[col].iloc[0] if len(filtered_df) > 0 else 'No data'}")
+                    st.warning("Revenue or company name data not found")
             
             with tab2:
                 # Find industry column
@@ -319,12 +281,11 @@ def main():
                         if len(industry_counts) > 0:
                             st.bar_chart(industry_counts, height=400)
                         else:
-                            st.warning("No industry data found")
+                            st.info("No industry data available")
                     except Exception as e:
-                        st.error(f"Error creating industry chart: {str(e)}")
+                        st.error(f"Unable to create industry chart: {str(e)}")
                 else:
-                    st.warning("Could not find industry column")
-                    st.write("Available columns:", list(filtered_df.columns))
+                    st.warning("Industry data not found")
             
             with tab3:
                 # Find employees column
@@ -343,22 +304,18 @@ def main():
                 
                 if employees_col and name_col:
                     try:
-                        # Ensure employees column is numeric
-                        filtered_df[employees_col] = pd.to_numeric(filtered_df[employees_col], errors='coerce')
-                        
                         # Get top 10 employers
-                        top_employers = filtered_df.nlargest(10, employees_col).dropna(subset=[employees_col])
+                        top_employers = filtered_df.dropna(subset=[employees_col]).nlargest(10, employees_col)
                         
                         if len(top_employers) > 0:
                             chart_data = top_employers.set_index(name_col)[employees_col]
                             st.bar_chart(chart_data, height=400)
                         else:
-                            st.warning("No valid employee data found")
+                            st.info("No employee data available for visualization")
                     except Exception as e:
-                        st.error(f"Error creating employees chart: {str(e)}")
+                        st.error(f"Unable to create employee chart: {str(e)}")
                 else:
-                    st.warning("Could not find employees or name column")
-                    st.write("Available columns:", list(filtered_df.columns))
+                    st.warning("Employee data not found")
         
         # Download section
         st.markdown("---")
