@@ -83,14 +83,26 @@ def scrape_companies_data():
         # Create DataFrame
         df = pd.DataFrame(rows, columns=headers)
         
-        # Clean up specific columns
-        if 'Revenue (USD millions)' in df.columns:
-            df['Revenue (USD millions)'] = df['Revenue (USD millions)'].str.replace(',', '')
-            df['Revenue (USD millions)'] = pd.to_numeric(df['Revenue (USD millions)'], errors='coerce')
-        
-        if 'Employees' in df.columns:
-            df['Employees'] = df['Employees'].str.replace(',', '')
-            df['Employees'] = pd.to_numeric(df['Employees'], errors='coerce')
+        # Clean up all columns - more robust cleaning
+        for col in df.columns:
+            if 'revenue' in col.lower() or 'usd' in col.lower():
+                # Clean revenue column
+                df[col] = df[col].astype(str)
+                df[col] = df[col].str.replace(',', '')
+                df[col] = df[col].str.replace('$', '')
+                df[col] = df[col].str.replace(' ', '')
+                # Extract only numbers (remove any text)
+                df[col] = df[col].str.extract(r'(\d+\.?\d*)', expand=False)
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+            
+            elif 'employee' in col.lower():
+                # Clean employees column
+                df[col] = df[col].astype(str)
+                df[col] = df[col].str.replace(',', '')
+                df[col] = df[col].str.replace(' ', '')
+                # Extract only numbers
+                df[col] = df[col].str.extract(r'(\d+)', expand=False)
+                df[col] = pd.to_numeric(df[col], errors='coerce')
         
         return df
         
@@ -229,10 +241,7 @@ def main():
             tab1, tab2, tab3 = st.tabs(["Top Companies by Revenue", "Industry Distribution", "Employee Count"])
             
             with tab1:
-                # Debug: Show available columns
-                st.write("Available columns:", list(filtered_df.columns))
-                
-                # Try different possible column names for revenue
+                # Find revenue and name columns
                 revenue_col = None
                 name_col = None
                 
@@ -248,28 +257,53 @@ def main():
                         name_col = col
                         break
                 
+                # Debug information
+                st.write(f"**Found columns:** Revenue: `{revenue_col}`, Name: `{name_col}`")
+                
                 if revenue_col and name_col:
+                    # Show sample data before processing
+                    st.write("**Sample revenue data:**")
+                    st.write(filtered_df[revenue_col].head(5).tolist())
+                    
                     try:
-                        # Ensure revenue column is numeric
-                        filtered_df[revenue_col] = pd.to_numeric(filtered_df[revenue_col], errors='coerce')
+                        # Check how many valid numeric values we have
+                        valid_revenue_count = filtered_df[revenue_col].notna().sum()
+                        st.write(f"**Valid revenue entries:** {valid_revenue_count} out of {len(filtered_df)}")
                         
-                        # Get top 10 companies
-                        top_10 = filtered_df.nlargest(10, revenue_col).dropna(subset=[revenue_col])
-                        
-                        if len(top_10) > 0:
-                            # Create the chart
-                            chart_data = top_10.set_index(name_col)[revenue_col]
-                            st.bar_chart(chart_data, height=400)
+                        if valid_revenue_count > 0:
+                            # Get top 10 companies with valid revenue data
+                            top_10 = filtered_df.dropna(subset=[revenue_col]).nlargest(10, revenue_col)
+                            
+                            st.write(f"**Top 10 companies found:** {len(top_10)}")
+                            
+                            if len(top_10) > 0:
+                                # Show the data we're trying to chart
+                                st.write("**Data for chart:**")
+                                chart_data = top_10[[name_col, revenue_col]].set_index(name_col)[revenue_col]
+                                st.write(chart_data)
+                                
+                                # Create the chart
+                                st.bar_chart(chart_data, height=400)
+                            else:
+                                st.warning("No companies found after filtering")
                         else:
-                            st.warning("No valid revenue data found for visualization")
+                            st.warning("No valid numeric revenue data found")
+                            st.write("**Raw revenue column sample:**")
+                            st.write(filtered_df[revenue_col].head(10))
+                            
                     except Exception as e:
                         st.error(f"Error creating chart: {str(e)}")
-                        # Fallback: show raw data
-                        st.write("Top 10 companies (raw data):")
-                        st.dataframe(filtered_df.head(10))
+                        st.write("**Error details:**")
+                        st.write(f"Revenue column type: {filtered_df[revenue_col].dtype}")
+                        st.write(f"Sample values: {filtered_df[revenue_col].head(5).tolist()}")
                 else:
-                    st.warning(f"Could not find revenue column (looking for: revenue, usd) or name column (looking for: name, company)")
-                    st.write("Available columns:", list(filtered_df.columns))
+                    st.warning("Could not find required columns")
+                    st.write("**Available columns:**", list(filtered_df.columns))
+                    
+                    # Try to find any column that might contain revenue data
+                    st.write("**Column content preview:**")
+                    for col in filtered_df.columns:
+                        st.write(f"**{col}:** {filtered_df[col].iloc[0] if len(filtered_df) > 0 else 'No data'}")
             
             with tab2:
                 # Find industry column
