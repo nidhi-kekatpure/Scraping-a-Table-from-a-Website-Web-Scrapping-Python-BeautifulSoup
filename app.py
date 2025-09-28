@@ -191,6 +191,15 @@ def main():
         if 'Revenue (USD millions)' in df.columns:
             filtered_df = filtered_df[filtered_df['Revenue (USD millions)'] >= min_revenue]
         
+        # Debug section (can be removed later)
+        with st.expander("🔍 Debug Info - Data Structure"):
+            st.write("**DataFrame Shape:**", filtered_df.shape)
+            st.write("**Column Names:**", list(filtered_df.columns))
+            st.write("**First few rows:**")
+            st.dataframe(filtered_df.head(3))
+            st.write("**Data Types:**")
+            st.write(filtered_df.dtypes)
+        
         # Display filtered data
         st.markdown("---")
         st.subheader("📈 Company Data")
@@ -220,25 +229,102 @@ def main():
             tab1, tab2, tab3 = st.tabs(["Top Companies by Revenue", "Industry Distribution", "Employee Count"])
             
             with tab1:
-                if 'Revenue (USD millions)' in filtered_df.columns and 'Name' in filtered_df.columns:
-                    top_10 = filtered_df.nlargest(10, 'Revenue (USD millions)')
-                    st.bar_chart(
-                        data=top_10.set_index('Name')['Revenue (USD millions)'],
-                        height=400
-                    )
+                # Debug: Show available columns
+                st.write("Available columns:", list(filtered_df.columns))
+                
+                # Try different possible column names for revenue
+                revenue_col = None
+                name_col = None
+                
+                # Find revenue column
+                for col in filtered_df.columns:
+                    if 'revenue' in col.lower() or 'usd' in col.lower():
+                        revenue_col = col
+                        break
+                
+                # Find name column
+                for col in filtered_df.columns:
+                    if 'name' in col.lower() or 'company' in col.lower():
+                        name_col = col
+                        break
+                
+                if revenue_col and name_col:
+                    try:
+                        # Ensure revenue column is numeric
+                        filtered_df[revenue_col] = pd.to_numeric(filtered_df[revenue_col], errors='coerce')
+                        
+                        # Get top 10 companies
+                        top_10 = filtered_df.nlargest(10, revenue_col).dropna(subset=[revenue_col])
+                        
+                        if len(top_10) > 0:
+                            # Create the chart
+                            chart_data = top_10.set_index(name_col)[revenue_col]
+                            st.bar_chart(chart_data, height=400)
+                        else:
+                            st.warning("No valid revenue data found for visualization")
+                    except Exception as e:
+                        st.error(f"Error creating chart: {str(e)}")
+                        # Fallback: show raw data
+                        st.write("Top 10 companies (raw data):")
+                        st.dataframe(filtered_df.head(10))
+                else:
+                    st.warning(f"Could not find revenue column (looking for: revenue, usd) or name column (looking for: name, company)")
+                    st.write("Available columns:", list(filtered_df.columns))
             
             with tab2:
-                if 'Industry' in filtered_df.columns:
-                    industry_counts = filtered_df['Industry'].value_counts()
-                    st.bar_chart(industry_counts, height=400)
+                # Find industry column
+                industry_col = None
+                for col in filtered_df.columns:
+                    if 'industry' in col.lower() or 'sector' in col.lower():
+                        industry_col = col
+                        break
+                
+                if industry_col:
+                    try:
+                        industry_counts = filtered_df[industry_col].value_counts()
+                        if len(industry_counts) > 0:
+                            st.bar_chart(industry_counts, height=400)
+                        else:
+                            st.warning("No industry data found")
+                    except Exception as e:
+                        st.error(f"Error creating industry chart: {str(e)}")
+                else:
+                    st.warning("Could not find industry column")
+                    st.write("Available columns:", list(filtered_df.columns))
             
             with tab3:
-                if 'Employees' in filtered_df.columns and 'Name' in filtered_df.columns:
-                    top_employers = filtered_df.nlargest(10, 'Employees')
-                    st.bar_chart(
-                        data=top_employers.set_index('Name')['Employees'],
-                        height=400
-                    )
+                # Find employees column
+                employees_col = None
+                name_col = None
+                
+                for col in filtered_df.columns:
+                    if 'employee' in col.lower():
+                        employees_col = col
+                        break
+                
+                for col in filtered_df.columns:
+                    if 'name' in col.lower() or 'company' in col.lower():
+                        name_col = col
+                        break
+                
+                if employees_col and name_col:
+                    try:
+                        # Ensure employees column is numeric
+                        filtered_df[employees_col] = pd.to_numeric(filtered_df[employees_col], errors='coerce')
+                        
+                        # Get top 10 employers
+                        top_employers = filtered_df.nlargest(10, employees_col).dropna(subset=[employees_col])
+                        
+                        if len(top_employers) > 0:
+                            chart_data = top_employers.set_index(name_col)[employees_col]
+                            st.bar_chart(chart_data, height=400)
+                        else:
+                            st.warning("No valid employee data found")
+                    except Exception as e:
+                        st.error(f"Error creating employees chart: {str(e)}")
+                else:
+                    st.warning("Could not find employees or name column")
+                    st.write("Available columns:", list(filtered_df.columns))
         
         # Download section
         st.markdown("---")
